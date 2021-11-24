@@ -5,15 +5,7 @@ import { getGraphQLParameters, processRequest, Request, renderGraphiQL, shouldRe
 import { schema } from './schema';
 
 async function main() {
-  // const myQuery = parse(`query { info }`);
-  
-  // const result = await execute({
-  //   schema,
-  //   document: myQuery,
-  // });
-
-  // console.log(result);
-
+  // http server
   const server = fastify();
 
   server.route({

@@ -11,7 +11,9 @@
   "author": "SernaDesigns <sernadesigns@gmail.com> (https://sernadesigns.com/)",
   "license": "ISC",
   "devDependencies": {
+    "@prisma/client": "^3.5.0",
     "@types/node": "^16.11.9",
+    "prisma": "^3.5.0",
     "ts-node": "^10.4.0",
     "ts-node-dev": "^1.1.8",
     "typescript": "^4.5.2"
