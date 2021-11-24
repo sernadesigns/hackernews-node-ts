@@ -1,25 +1,15 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
+import { GraphQLContext } from './context';
 import typeDefs from './schema.graphql';
-
-// type definitions
-type Link = {
-  id: string;
-  url: string;
-  description: string;
-}
-
-// in lieau of database
-const links: Link[] = [{
-  id: 'link-0',
-  url: 'www.howtographql.com',
-  description: 'Fullstack tutorial for GraphQL'
-}]
+import { Link } from '@prisma/client';
 
 // resolver functions
 const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
-    feed: () => links,
+    feed: async (parent: unknown, args: {}, context: GraphQLContext) => {
+      return context.prisma.link.findMany();
+    },
   },
   // trivial resolver def and not needed
   Link: {
@@ -28,20 +18,20 @@ const resolvers = {
     url: (parent: Link) => parent.url,
   },
   Mutation: {
-    post: (parent: unknown, args: { description: string, url: string }): Link => {
-      let idCount = links.length;
-      const link: Link = {
-        id: `link-${idCount++}`,
-        description: args.description,
-        url: args.url,
-      };
+    post: async (
+      parent: unknown,
+      args: { description: string, url: string },
+      context: GraphQLContext
+    ) => {
+      const newLink = await context.prisma.link.create({
+        data: {
+          url: args.url,
+          description: args.description,
+        },
+      });
 
-      // pushes link to collection
-      links.push(link);
-
-      // returns one link
-      return link;
-    }
+      return newLink;
+    },
   }
 }
 
