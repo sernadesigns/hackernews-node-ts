@@ -11,9 +11,8 @@ import { PubSubChannels } from './pubsub';
 const resolvers = {
   Query: {
     info: () => `This is the API of a Hackernews Clone`,
-    feed: async (parent: unknown, args: {}, context: GraphQLContext) => {
-      return context.prisma.link.findMany();
-    },
+    feed: async (parent: unknown, args: {}, context: GraphQLContext) =>
+      context.prisma.link.findMany(),
     me: (parent: unknown, args: {}, context: GraphQLContext) => {
       if (context.currentUser === null) {
         throw new Error('Unauthenticated!');
@@ -35,12 +34,19 @@ const resolvers = {
       return context.prisma.link
         .findUnique({ where: { id: parent.id } })
         .postedBy();
-    }
+    },
+    votes: (parent: Link, args: {}, context: GraphQLContext) =>
+      context.prisma.link.findUnique({ where: { id: parent.id } }).votes(),
   },
   User: {
-    links: (parent: User, args: {}, context: GraphQLContext) => {
-      return context.prisma.user.findUnique({ where: { id: parent.id } }).links();
-    },
+    links: (parent: User, args: {}, context: GraphQLContext) =>
+      context.prisma.user.findUnique({ where: { id: parent.id } }).links(),
+  },
+  Vote: {
+    link: (parent: User, args: {}, context: GraphQLContext) =>
+      context.prisma.vote.findUnique({ where: { id: parent.id } }).link(),
+    user: (parent: User, args: {}, context: GraphQLContext) =>
+      context.prisma.vote.findUnique({ where: { id: parent.id } }).user(),
   },
   Mutation: {
     signup: async (
@@ -104,15 +110,54 @@ const resolvers = {
 
       return newLink;
     },
+    vote: async (
+      parent: unknown,
+      args: { linkId: string },
+      context: GraphQLContext
+    ) => {
+      if (!context.currentUser) {
+        throw new Error('You must login in order to use upvote!');
+      }
+
+      const userId = context.currentUser.id;
+
+      const vote = await context.prisma.vote.findUnique({
+        where: {
+          linkId_userId: {
+            linkId: Number(args.linkId),
+            userId: userId,
+          },
+        },
+      });
+
+      if (vote !== null) {
+        throw new Error(`Already voted for link: ${args.linkId}`);
+      }
+
+      const newVote = await context.prisma.vote.create({
+        data: {
+          user: { connect: { id: userId } },
+          link: { connect: { id: Number(args.linkId) } },
+        },
+      });
+
+      context.pubSub.publish('newVote', { createdVote: newVote });
+
+      return newVote;
+    }
   },
   Subscription: {
     newLink: {
-      subscribe: (parent: unknown, args: {}, context: GraphQLContext) => {
-        return context.pubSub.asyncIterator('newLink');
-      },
-      resolve: (payload: PubSubChannels['newLink'][0]) => {
-        return payload.createdLink;
-      }
+      subscribe: (parent: unknown, args: {}, context: GraphQLContext) =>
+        context.pubSub.asyncIterator('newLink'),
+      resolve: (payload: PubSubChannels['newLink'][0]) =>
+        payload.createdLink,
+    },
+    newVote: {
+      subscribe: (parent: unknown, args: {}, context: GraphQLContext) =>
+        context.pubSub.asyncIterator('newVote'),
+      resolve: (payload: PubSubChannels['newVote'][0]) =>
+        payload.createdVote,
     }
   }
 }
